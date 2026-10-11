@@ -91,8 +91,23 @@ you can search it for the words you see in-game and copy those lines into your m
   ³ and so on); the launcher says so if a character cannot be shown.
 - Markers such as `{0:points}` and `«` are filled in or drawn by the game: keep them as they are.
 - `^` starts a new line, so it cannot be used as an ordinary character.
-- The game's font does not have every character the table can hold: `³`, for one, is missing and
-  shows as nothing. Check new characters in-game.
+- The game's fonts do not have every character the table can hold: `³`, for one, is missing and
+  shows as nothing. Check new characters in-game, or add them to the fonts (below).
+
+## Fonts
+
+Menu text is drawn from bitmap fonts in `data/big/miscboot.big`: a sheet of characters
+(`futuraheavy.rx2`, `futuraglow.rx2`, `futurashadow.rx2`, `futuraoverprint.rx2`) and a plain-text
+description of each (`futuraheavy.bmpFont` and so on).
+
+- `GlyphMetricsMap: <count>` lists the characters on the sheet, each as
+  `index page x y width height bearingX bearingY advance`. `x, y` is the character's origin on the
+  baseline, not a corner: its picture sits at `(x + bearingX, y - bearingY)`.
+- `CharMapSet: <count>` pairs Unicode code points with those indices, in ascending order.
+
+To add a character: draw it in an empty part of the sheet (replace the sheet with an image, as for
+any texture), add a line for it to `GlyphMetricsMap`, pair its code point with it in `CharMapSet`,
+and raise both counts.
 
 ## Getting the original files
 
