@@ -4,7 +4,8 @@ import { dirname, join } from 'node:path'
 import type { ArchiveEntryInfo, ArchiveInfo, ExtractResult } from '@shared/types'
 import { openBig, readEntry } from './big'
 import { gameRoot } from './game'
-import { pristinePath } from './mods'
+import { STRINGS_SUFFIX, pristinePath } from './mods'
+import { exportStrings, isTextTable } from './textTable'
 import { decodeTextures, encodePng } from './texture'
 
 // Tools for mod authors: look inside the game's archives and pull files out of them.
@@ -68,7 +69,18 @@ export async function extractEntries(
   const folder = join(extractedRoot(), ...path.split('/'))
   let files = 0
   let images = 0
+  let texts = 0
   let failed = 0
+  // Text tables are listed with their labels, which the archive keeps in a table of their own.
+  const labelTables = new Map<string, Buffer | null>()
+  const labelsFor = async (tablePath: string): Promise<Buffer | null> => {
+    const labelsPath = tablePath.replace(/LANGUAGE_[^_/]+_/i, 'LANGUAGE_Labels_').toLowerCase()
+    if (!labelTables.has(labelsPath)) {
+      const found = archive.entries.find((other) => other.path.toLowerCase() === labelsPath)
+      labelTables.set(labelsPath, found ? await readEntry(file, found).catch(() => null) : null)
+    }
+    return labelTables.get(labelsPath)!
+  }
   for (const entry of archive.entries) {
     if (!wanted.has(entry.path)) continue
     // Entry paths come from the archive: keep them inside the output folder.
@@ -79,6 +91,11 @@ export async function extractEntries(
       await mkdir(dirname(target), { recursive: true })
       await writeFile(target, contents)
       files++
+      if (isTextTable(contents)) {
+        const strings = exportStrings(contents, await labelsFor(entry.path))
+        await writeFile(`${target}${STRINGS_SUFFIX}`, JSON.stringify(strings, null, 2))
+        texts++
+      }
       if (png) {
         const textures = decodeTextures(contents)
         for (const [index, texture] of textures.entries()) {
@@ -92,5 +109,5 @@ export async function extractEntries(
       failed++
     }
   }
-  return { ok: true, folder, files, images, failed }
+  return { ok: true, folder, files, images, texts, failed }
 }

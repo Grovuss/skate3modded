@@ -5,6 +5,7 @@ import { copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 
 import { basename, dirname, extname, join } from 'node:path'
 import type { ModConflict, ModInfo, Result } from '@shared/types'
 import { openBig, patchBig, readEntry } from './big'
+import { applyStrings } from './textTable'
 import { decodePng, replaceTextures, type Image } from './textureEncode'
 import { exeDir, gameRoot, isDirectory, isGameInstalled, isRunning } from './game'
 import { extractZip } from './zip'
@@ -147,6 +148,9 @@ interface Source {
   file: string
 }
 
+/** "<text table>.strings.json" changes or adds lines of text in that table. */
+export const STRINGS_SUFFIX = '.strings.json'
+
 interface WantedEntry {
   /** Path inside the archive. */
   entry: string
@@ -154,6 +158,26 @@ interface WantedEntry {
   file: Source | null
   /** Replacement images by texture number, applied to the entry. */
   images: Map<number, Source>
+  /** Text changes, highest priority first; every mod's lines are merged. */
+  strings: Source[]
+}
+
+async function readStrings(source: Source): Promise<Map<string, string>> {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse((await readFile(source.file, 'utf8')).replace(/^﻿/, ''))
+  } catch {
+    throw new Error('the strings file is not valid JSON')
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('the strings file must be an object of "LABEL": "text" pairs')
+  }
+  const strings = new Map<string, string>()
+  for (const [key, value] of Object.entries(parsed)) {
+    if (typeof value !== 'string') throw new Error(`${key}: the text must be a string`)
+    strings.set(key, value)
+  }
+  return strings
 }
 
 interface Wanted {
@@ -172,6 +196,7 @@ function signatureOf(wanted: Wanted): string {
     const { file, images } = wanted.entries.get(key)!
     hash.update(`\n${key}=${file?.mod ?? ''}`)
     for (const number of [...images.keys()].sort((a, b) => a - b)) hash.update(`,${number}:${images.get(number)!.mod}`)
+    hash.update(`;${wanted.entries.get(key)!.strings.map((source) => source.mod).join(',')}`)
   }
   return `patched:${hash.digest('hex')}`
 }
@@ -179,16 +204,24 @@ function signatureOf(wanted: Wanted): string {
 /** Works out the new contents of each changed entry of an archive. */
 async function buildEntries(base: string, wanted: Wanted, notes: string[]): Promise<Map<string, Buffer>> {
   const changes = new Map<string, Buffer>()
-  const archive = [...wanted.entries.values()].some((item) => item.images.size && !item.file)
-    ? await openBig(base)
-    : null
-  for (const { entry, file, images } of wanted.entries.values()) {
+  const archive = [...wanted.entries.values()].some((item) => !item.file) ? await openBig(base) : null
+  for (const { entry, file, images, strings } of wanted.entries.values()) {
     let contents: Buffer
     if (file) contents = await readFile(file.file)
     else {
       const original = archive?.entries.find((other) => other.path.toLowerCase() === entry.toLowerCase())
-      if (!original) throw new Error(`A mod has an image for ${entry}, which is not in ${wanted.path}.`)
+      if (!original) throw new Error(`A mod changes ${entry}, which is not in ${wanted.path}.`)
       contents = await readEntry(base, original)
+    }
+    if (strings.length) {
+      try {
+        // Lowest priority first, so a higher mod's line replaces a lower mod's.
+        const merged = new Map<string, string>()
+        for (const source of [...strings].reverse()) for (const [key, text] of await readStrings(source)) merged.set(key, text)
+        contents = applyStrings(contents, merged)
+      } catch (error) {
+        throw new Error(`${entry}: ${error instanceof Error ? error.message : String(error)}.`)
+      }
     }
     if (images.size) {
       const decoded = new Map<number, Image>()
@@ -236,11 +269,17 @@ async function sync(state: InstallState, metas: Map<string, ModMeta>): Promise<s
       // Extraction writes entries of archives without file names as "unnamed/<hash>".
       const named = inArchive.entry.replace(/^unnamed\//i, '#')
       const image = splitTextureImage(named)
-      const entry = image?.entry ?? named
+      const isStrings = named.toLowerCase().endsWith(STRINGS_SUFFIX)
+      const entry = image?.entry ?? (isStrings ? named.slice(0, -STRINGS_SUFFIX.length) : named)
       let item = wanted.entries.get(entry.toLowerCase())
-      if (!item) wanted.entries.set(entry.toLowerCase(), (item = { entry, file: null, images: new Map() }))
+      if (!item) {
+        wanted.entries.set(entry.toLowerCase(), (item = { entry, file: null, images: new Map(), strings: [] }))
+      }
       const source = { mod: id, file: join(modDir(id), 'files', path) }
-      if (!image) item.file ??= source
+      if (isStrings) {
+        // Like images, text changes apply on top of a table from the same or a lower-priority mod.
+        if (!item.file || item.file.mod === id) item.strings.push(source)
+      } else if (!image) item.file ??= source
       // An image only applies on top of a file from the same or a lower-priority mod.
       else if (!item.images.has(image.texture) && (!item.file || item.file.mod === id)) {
         item.images.set(image.texture, source)

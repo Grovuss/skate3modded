@@ -61,6 +61,36 @@ as the game shipped it. A mod made this way contains nothing but your own images
 
 If an image is the wrong size, the launcher says so and switches the mod back off.
 
+## Changing text
+
+The game's text lives in tables, one per language, in `data/big/miscboot.big`
+(`LANGUAGE_English_Global_skate3ng.BIN` and so on). To change lines of text, add a file named like
+the table plus `.strings.json`:
+
+```
+files/data/big/miscboot.big/LANGUAGE_English_Global_skate3ng.BIN.strings.json
+```
+
+```json
+{
+  "ID_PLAY_SKATE_3": "Play Skate³!",
+  "ID_PATH_NAME_THRASHER": "Magazine Photos"
+}
+```
+
+Each key is the line's label and each value is its new text. Only list the lines you change.
+*Extract* on a text table also writes its `.strings.json` with every label and its current text, so
+you can search it for the words you see in-game and copy those lines into your mod.
+
+- Several mods can change text in the same table; when two change the same line, the one higher in
+  the list wins.
+- A label the table does not have yet is added as a new line. That only matters if something in the
+  game asks for that label: clothing names, for example, use
+  `ID_CAC_PART_<MODEL NAME>_<MATERIAL NAME>` in capitals.
+- Save the file as UTF-8. Western languages can show the characters of Windows-1252 (accents, ™, ®,
+  ³ and so on); the launcher says so if a character cannot be shown.
+- Markers such as `{0:points}` and `«` are filled in or drawn by the game: keep them as they are.
+
 ## Getting the original files
 
 The **Game files** page lists every archive and what is in it. *Extract* writes the files to the
@@ -89,4 +119,5 @@ file (`.rx2`) is also saved as an image so you can see what it is.
 - Changing a texture's size or format.
 - Adding new clothing as a separate item: a new item can be made to load, but it takes the place of
   the item it was copied from in the menu. The cause has not been found.
-- New item names: the game's text table is keyed by a hash that has not been worked out.
+- Text tables other than the per-language "Global" ones (the small "HISTOGRAM" files) are not
+  understood.

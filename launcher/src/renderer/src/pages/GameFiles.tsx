@@ -45,7 +45,9 @@ export function GameFiles({ status, notify }: Props) {
     const result = await window.skate.extractEntries(selected, paths, png)
     setBusy(false)
     if (!result.ok) return notify(result.error ?? 'Something went wrong.', 'error')
-    const images = result.images ? `, ${result.images} as PNG` : ''
+    const images =
+      (result.images ? `, ${result.images} as PNG` : '') +
+      (result.texts ? `, ${result.texts} as editable text` : '')
     const failed = result.failed ? ` (${result.failed} could not be read)` : ''
     notify(`Extracted ${result.files} ${result.files === 1 ? 'file' : 'files'}${images}${failed}.`)
     void window.skate.openPath('extracted')

@@ -127,6 +127,8 @@ export interface ExtractResult extends Result {
   files?: number
   /** Textures also saved as PNG. */
   images?: number
+  /** Text tables also listed as a strings file. */
+  texts?: number
   failed?: number
 }
 
