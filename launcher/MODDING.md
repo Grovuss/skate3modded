@@ -135,7 +135,26 @@ file (`.rx2`) is also saved as an image so you can see what it is.
 ## Not possible yet
 
 - Changing a texture's size or format.
-- Adding new clothing as a separate item: a new item can be made to load, but it takes the place of
-  the item it was copied from in the menu. The cause has not been found.
+- Adding new clothing with the launcher alone. It has been done by hand (see below), but there is
+  no tool for it yet.
+
+## Adding a new clothing item (what it takes)
+
+A new short-sleeve tee has been added next to the existing ones by editing `cas_db_*.recipe`. The
+rules found on the way:
+
+- The texture is a new `.rx2` file with its own id, name and hash (see above), plus a row for it in
+  `cas_db_*.toc`.
+- Each model's list of materials in the recipe gains an entry (at both detail levels) pointing at
+  the new texture. The lists are in order of the materials' names, so a material added at the end
+  needs a name that sorts last.
+- An item record is added per model, with the new material id and string-table entries of its own:
+  - a **name**, or the game treats it as the item it was copied from;
+  - a **style** string (the artwork path at offset 0xBA of the record). Items of one model sharing
+    a style string appear as one tile with several "options", so reusing another item's style
+    makes the new item show up inside that item's tile.
+- The unlock fields (offsets 0xB8 and 0xC2) set to 0xFFFF make the item available from the start.
+- Its display name is the text line `ID_CAC_PART_<MODEL NAME>_<MATERIAL NAME>` in capitals.
+- Growing the recipe must keep the string table on a 32-byte boundary (see above).
 - Text tables other than the per-language "Global" ones (the small "HISTOGRAM" files) are not
   understood.
