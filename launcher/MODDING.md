@@ -156,5 +156,24 @@ rules found on the way:
 - The unlock fields (offsets 0xB8 and 0xC2) set to 0xFFFF make the item available from the start.
 - Its display name is the text line `ID_CAC_PART_<MODEL NAME>_<MATERIAL NAME>` in capitals.
 - Growing the recipe must keep the string table on a 32-byte boundary (see above).
+
+The menu pictures that go with an item are in `data/big/fedynamic.big`:
+
+- **Tile thumbnail:** `data/fe/cas/<male|female>/<body part>/<model name>_<material name>.rx2`,
+  128×128.
+- **Brand logo:** `data/fe/source/images/sponsor_logos/<logo name>.rx2`, 64×64 or 128×128.
+
+These files state their own name inside: the text `<name>.Texture`, a 32-bit FNV-1 hash of the name
+(in three places) and a 64-bit FNV-1 hash of `<name>.Texture`. A copy under a new name must update
+all of them; keeping the new name the same length as the old one avoids moving anything else.
+
+Brands are slots defined in `data/big/db.big` (`skatercollections.bin`), each with a logo file and
+a name label (`ID_CAC_BRAND_<NAME>`). That file is not understood well enough to add a slot. An
+item whose brand is not a slot gets no logo and is listed right after the brandless items. The
+list follows the slots' own order: brandless first, then the brands by internal name. Twelve
+slots are used by no item (ambiguous, bandshirts, bigblack, diamond, fillmore, fkd, icecream,
+luxirie, lost, macbeth, mystery, neweracap), so a new brand can take one over by replacing its
+logo image and label text. To be listed first, take the first slot (adidas) and move its items to
+an unused slot, swapping the two slots' logos and labels.
 - Text tables other than the per-language "Global" ones (the small "HISTOGRAM" files) are not
   understood.
