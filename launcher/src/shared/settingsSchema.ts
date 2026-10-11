@@ -98,7 +98,14 @@ export const SETTING_SECTIONS: SettingSection[] = [
           { label: 'Monitor 4', value: 4 }
         ]
       },
-      { key: 'show_fps_counter', type: 'bool', label: 'FPS counter', default: false }
+      { key: 'show_fps_counter', type: 'bool', label: 'FPS counter', default: false },
+      {
+        key: 'skate3_native_render_mode_indicator',
+        type: 'bool',
+        label: 'Renderer indicator',
+        hint: 'Corner readout of which renderer drew the frame.',
+        default: false
+      }
     ]
   },
   {

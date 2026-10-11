@@ -17,9 +17,19 @@ import {
   userRoot,
   writeSettings
 } from './game'
-import { extractEntries, extractedRoot, listArchives, listEntries } from './gamefiles'
+import { addToMod, extractEntries, extractedRoot, listArchives, listEntries } from './gamefiles'
 import { installGameFiles } from './iso'
-import { importMod, libraryRoot, listMods, moveMod, removeMod, setModEnabled } from './mods'
+import {
+  createMod,
+  importMod,
+  libraryRoot,
+  listMods,
+  modFolder,
+  moveMod,
+  reloadMod,
+  removeMod,
+  setModEnabled
+} from './mods'
 import { backupsRoot, createBackup, deleteBackup, listBackups, restoreBackup } from './saves'
 
 const BACKGROUND = '#0a0c11'
@@ -198,6 +208,18 @@ function registerIpc(): void {
     attempt(() => moveMod(String(id), Number(delta)))
   )
   ipcMain.handle('mods:remove', (_event, id: unknown) => attempt(() => removeMod(String(id))))
+
+  ipcMain.handle('mods:create', (_event, name: unknown) => attempt(() => createMod(String(name ?? ''))))
+  ipcMain.handle('mods:reload', (_event, id: unknown) => attempt(() => reloadMod(String(id))))
+  ipcMain.handle('mods:open', async (_event, id: unknown) => {
+    const folder = modFolder(String(id))
+    if (folder) await shell.openPath(folder)
+  })
+  ipcMain.handle('files:to-mod', (_event, id: unknown, archive: unknown, entries: unknown) =>
+    attempt(() =>
+      addToMod(String(id), String(archive), Array.isArray(entries) ? entries.map(String) : [])
+    )
+  )
 
   ipcMain.handle('files:archives', () => listArchives())
   ipcMain.handle('files:entries', (_event, archive: unknown) =>

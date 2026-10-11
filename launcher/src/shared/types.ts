@@ -169,6 +169,13 @@ export interface Api {
   /** Moves a mod up (-1) or down (+1) the priority list. */
   moveMod(id: string, delta: -1 | 1): Promise<Result>
   removeMod(id: string): Promise<Result>
+  /** Starts an empty mod for the user to fill in. */
+  createMod(name: string): Promise<Result>
+  /** Re-reads a mod's folder after it was edited and rebuilds the game files if the mod is on. */
+  reloadMod(id: string): Promise<Result>
+  openModFolder(id: string): Promise<void>
+  /** Copies entries of an archive into a mod in editable form: textures as PNG, text as a strings file. */
+  addToMod(id: string, archive: string, entries: string[]): Promise<ExtractResult>
 
   /** The game's archives, for mod authors. Always the unmodded copies. */
   listArchives(): Promise<ArchiveInfo[]>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ArchiveEntryInfo, ArchiveInfo, GameStatus } from '@shared/types'
+import type { ArchiveEntryInfo, ArchiveInfo, GameStatus, ModInfo } from '@shared/types'
 import { EmptyState, Icon, PageHeader, Toggle, formatBytes, type Notify } from '../ui'
 
 interface Props {
@@ -17,6 +17,10 @@ export function GameFiles({ status, notify }: Props) {
   const [filter, setFilter] = useState('')
   const [png, setPng] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [mods, setMods] = useState<ModInfo[]>([])
+  const [modId, setModId] = useState('')
+
+  useEffect(() => void window.skate.listMods().then(setMods), [])
 
   useEffect(() => {
     void window.skate.listArchives().then((found) => {
@@ -51,6 +55,23 @@ export function GameFiles({ status, notify }: Props) {
     const failed = result.failed ? ` (${result.failed} could not be read)` : ''
     notify(`Extracted ${result.files} ${result.files === 1 ? 'file' : 'files'}${images}${failed}.`)
     void window.skate.openPath('extracted')
+  }
+
+  const toMod = async (paths: string[]): Promise<void> => {
+    setBusy(true)
+    const result = await window.skate.addToMod(modId, selected, paths)
+    setBusy(false)
+    if (!result.ok) return notify(result.error ?? 'Something went wrong.', 'error')
+    const added = [
+      result.images ? `${result.images} ${result.images === 1 ? 'image' : 'images'}` : '',
+      result.texts ? 'a text file to add lines to' : '',
+      result.files ? `${result.files} ${result.files === 1 ? 'file' : 'files'}` : ''
+    ].filter(Boolean)
+    notify(
+      added.length
+        ? `Added ${added.join(', ')} to the mod. Edit them, then press Reload on the Mods page.`
+        : 'The mod already has these files.'
+    )
   }
 
   return (
@@ -117,6 +138,33 @@ export function GameFiles({ status, notify }: Props) {
             </button>
           </div>
 
+          <div className="row">
+            <span>Mod to add files to</span>
+            <select
+              className="select grow"
+              style={{ minWidth: 0 }}
+              aria-label="Mod to add files to"
+              value={modId}
+              onChange={(event) => setModId(event.target.value)}
+            >
+              <option value="">{mods.length ? 'Choose a mod' : 'No mods yet: create one on the Mods page'}</option>
+              {mods.map((mod) => (
+                <option key={mod.id} value={mod.id}>
+                  {mod.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              title="Put editable copies of the listed files in the chosen mod"
+              disabled={busy || !modId || !filter.trim() || shown.length === 0 || shown.length > 200}
+              onClick={() => void toMod(shown.map((entry) => entry.path))}
+            >
+              Add matching to mod
+            </button>
+          </div>
+
           <div className="list">
             {shown.slice(0, VISIBLE_ROWS).map((entry) => (
               <div className="list-row" key={entry.path}>
@@ -132,6 +180,15 @@ export function GameFiles({ status, notify }: Props) {
                     onClick={() => void extract([entry.path])}
                   >
                     Extract
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    title="Put an editable copy in the mod chosen above"
+                    disabled={busy || !modId}
+                    onClick={() => void toMod([entry.path])}
+                  >
+                    To mod
                   </button>
                 </div>
               </div>

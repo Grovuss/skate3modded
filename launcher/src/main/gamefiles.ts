@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 import type { ArchiveEntryInfo, ArchiveInfo, ExtractResult } from '@shared/types'
 import { openBig, readEntry } from './big'
 import { gameRoot } from './game'
-import { STRINGS_SUFFIX, pristinePath } from './mods'
+import { STRINGS_SUFFIX, modFilesDir, pristinePath, rescanMod } from './mods'
 import { exportStrings, isTextTable } from './textTable'
 import { decodeTextures, encodePng } from './texture'
 
@@ -109,5 +109,55 @@ export async function extractEntries(
       failed++
     }
   }
+  return { ok: true, folder, files, images, texts, failed }
+}
+
+/**
+ * Puts entries of an archive into a library mod in the form a person edits: textures as PNG images,
+ * text tables as an empty strings file to add lines to, anything else as the file itself. Files the
+ * mod already has are left alone, so work in progress is never overwritten.
+ */
+export async function addToMod(id: string, path: string, entries: string[]): Promise<ExtractResult> {
+  const root = modFilesDir(id)
+  if (!root) throw new Error('Mod not found.')
+  const file = archiveFile(path)
+  const archive = await openBig(file)
+  if (!archive) throw new Error('Not a Skate 3 archive.')
+  const wanted = new Set(entries)
+  const folder = join(root, ...path.split('/'))
+  let files = 0
+  let images = 0
+  let texts = 0
+  let failed = 0
+  const writeNew = async (target: string, data: Buffer | string): Promise<boolean> => {
+    await mkdir(dirname(target), { recursive: true })
+    // "wx": fail instead of replacing a file that is already there.
+    return writeFile(target, data, { flag: 'wx' }).then(
+      () => true,
+      () => false
+    )
+  }
+  for (const entry of archive.entries) {
+    if (!wanted.has(entry.path)) continue
+    const parts = entry.path.replace(/^#/, 'unnamed/').split('/').filter((part) => part && part !== '..')
+    const target = join(folder, ...parts)
+    try {
+      const contents = await readEntry(file, entry)
+      const textures = decodeTextures(contents)
+      if (isTextTable(contents)) {
+        if (await writeNew(`${target}${STRINGS_SUFFIX}`, '{\n}\n')) texts++
+      } else if (textures.some((texture) => texture.rgba)) {
+        for (const [index, texture] of textures.entries()) {
+          if (!texture.rgba) continue
+          const suffix = textures.length > 1 ? `_${index}` : ''
+          const png = encodePng(texture.width, texture.height, texture.rgba)
+          if (await writeNew(`${target}${suffix}.png`, png)) images++
+        }
+      } else if (await writeNew(target, contents)) files++
+    } catch {
+      failed++
+    }
+  }
+  await rescanMod(id)
   return { ok: true, folder, files, images, texts, failed }
 }

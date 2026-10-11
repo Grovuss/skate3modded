@@ -90,6 +90,9 @@ you can search it for the words you see in-game and copy those lines into your m
 - Save the file as UTF-8. Western languages can show the characters of Windows-1252 (accents, ™, ®,
   ³ and so on); the launcher says so if a character cannot be shown.
 - Markers such as `{0:points}` and `«` are filled in or drawn by the game: keep them as they are.
+- `^` starts a new line, so it cannot be used as an ordinary character.
+- The game's font does not have every character the table can hold: `³`, for one, is missing and
+  shows as nothing. Check new characters in-game.
 
 ## Getting the original files
 

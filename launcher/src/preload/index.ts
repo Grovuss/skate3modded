@@ -41,6 +41,10 @@ const api: Api = {
   setModEnabled: (id, enabled) => ipcRenderer.invoke('mods:enable', id, enabled),
   moveMod: (id, delta) => ipcRenderer.invoke('mods:move', id, delta),
   removeMod: (id) => ipcRenderer.invoke('mods:remove', id),
+  createMod: (name) => ipcRenderer.invoke('mods:create', name),
+  reloadMod: (id) => ipcRenderer.invoke('mods:reload', id),
+  openModFolder: (id) => ipcRenderer.invoke('mods:open', id),
+  addToMod: (id, archive, entries) => ipcRenderer.invoke('files:to-mod', id, archive, entries),
 
   listArchives: () => ipcRenderer.invoke('files:archives'),
   listArchiveEntries: (archive) => ipcRenderer.invoke('files:entries', archive),

@@ -18,6 +18,8 @@ interface Props {
 export function Mods({ status, notify }: Props) {
   const [mods, setMods] = useState<ModInfo[] | null>(null)
   const [busy, setBusy] = useState(false)
+  const [naming, setNaming] = useState(false)
+  const [newName, setNewName] = useState('')
 
   const reload = useCallback(async () => setMods(await window.skate.listMods()), [])
   useEffect(() => void reload(), [reload, status.exePath])
@@ -44,6 +46,14 @@ export function Mods({ status, notify }: Props) {
               type="button"
               className="btn btn-ghost"
               disabled={busy}
+              onClick={() => setNaming((open) => !open)}
+            >
+              New mod
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={busy}
               onClick={() => void run(window.skate.addMod('folder'))}
             >
               <Icon name="folder" size={16} />
@@ -60,6 +70,36 @@ export function Mods({ status, notify }: Props) {
           </>
         }
       />
+
+      {naming && (
+        <form
+          className="row"
+          onSubmit={(event) => {
+            event.preventDefault()
+            setNaming(false)
+            setNewName('')
+            void run(window.skate.createMod(newName))
+          }}
+        >
+          <input
+            className="input"
+            autoFocus
+            placeholder="Name of the new mod"
+            aria-label="Name of the new mod"
+            value={newName}
+            onChange={(event) => setNewName(event.target.value)}
+          />
+          <button type="submit" className="btn btn-primary" disabled={!newName.trim()}>
+            Create
+          </button>
+        </form>
+      )}
+      {naming && (
+        <span className="hint">
+          Creates an empty mod. Fill it from the Game files page, or open its folder and add files
+          yourself, then press Reload.
+        </span>
+      )}
 
       {status.running && (
         <div className="notice">Skate 3 is running. Close the game to change mods.</div>
@@ -107,6 +147,24 @@ export function Mods({ status, notify }: Props) {
                 ))}
               </div>
               <div className="row">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon"
+                  aria-label={`Open the folder of ${mod.name}`}
+                  title="Open the mod's folder"
+                  onClick={() => void window.skate.openModFolder(mod.id)}
+                >
+                  <Icon name="folder" size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  title="Use the files as they are in the mod's folder now"
+                  disabled={locked}
+                  onClick={() => void run(window.skate.reloadMod(mod.id))}
+                >
+                  Reload
+                </button>
                 <button
                   type="button"
                   className="btn btn-ghost btn-icon"

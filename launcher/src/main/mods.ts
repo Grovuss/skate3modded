@@ -33,6 +33,8 @@ interface ModMeta {
   sizeBytes: number
   /** Paths relative to the game data root, forward slashes. */
   files: string[]
+  /** Changes whenever the mod's files are re-read from its folder, so the game files get rebuilt. */
+  revision?: number
 }
 
 interface AppliedFile {
@@ -189,14 +191,19 @@ interface Wanted {
 }
 
 /** Identifies what a target file was built from, so unchanged files are left alone. */
-function signatureOf(wanted: Wanted): string {
-  if (wanted.entries.size === 0) return wanted.whole!
-  const hash = createHash('sha1').update(wanted.whole ?? '')
+function signatureOf(wanted: Wanted, metas: Map<string, ModMeta>): string {
+  // A mod is identified by its id, plus its revision once its files have been re-read.
+  const token = (mod: string): string => {
+    const revision = metas.get(mod)?.revision
+    return revision ? `${mod}@${revision}` : mod
+  }
+  if (wanted.entries.size === 0) return token(wanted.whole!)
+  const hash = createHash('sha1').update(wanted.whole ? token(wanted.whole) : '')
   for (const key of [...wanted.entries.keys()].sort()) {
-    const { file, images } = wanted.entries.get(key)!
-    hash.update(`\n${key}=${file?.mod ?? ''}`)
-    for (const number of [...images.keys()].sort((a, b) => a - b)) hash.update(`,${number}:${images.get(number)!.mod}`)
-    hash.update(`;${wanted.entries.get(key)!.strings.map((source) => source.mod).join(',')}`)
+    const { file, images, strings } = wanted.entries.get(key)!
+    hash.update(`\n${key}=${file ? token(file.mod) : ''}`)
+    for (const number of [...images.keys()].sort((a, b) => a - b)) hash.update(`,${number}:${token(images.get(number)!.mod)}`)
+    hash.update(`;${strings.map((source) => token(source.mod)).join(',')}`)
   }
   return `patched:${hash.digest('hex')}`
 }
@@ -299,7 +306,7 @@ async function sync(state: InstallState, metas: Map<string, ModMeta>): Promise<s
 
     for (const [key, wanted] of desired) {
       const current = state.applied[key]
-      const signature = signatureOf(wanted)
+      const signature = signatureOf(wanted, metas)
       if (current && (current.signature ?? current.mod) === signature) continue
       const path = current?.path ?? wanted.path
       const target = join(root, path)
@@ -544,6 +551,59 @@ function change(
     await after?.()
     return { ok: true }
   })
+}
+
+/** Starts an empty mod in the library for the user to fill in. */
+export function createMod(name: string): Promise<Result & { id?: string }> {
+  return enqueue(async () => {
+    const title = text(name).slice(0, 60)
+    if (!title) return { ok: false, error: 'Give the mod a name.' }
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
+    const id = `${slug || 'mod'}-${randomBytes(3).toString('hex')}`
+    await mkdir(join(modDir(id), 'files'), { recursive: true })
+    const meta: ModMeta = {
+      id,
+      name: title,
+      version: '1.0',
+      author: '',
+      description: '',
+      addedAt: Date.now(),
+      sizeBytes: 0,
+      files: []
+    }
+    await writeFile(join(modDir(id), MANIFEST), JSON.stringify(meta, null, 2))
+    return { ok: true, id }
+  })
+}
+
+/** Folder of a library mod's files, mirroring the game folder; null for an unknown mod. */
+export function modFilesDir(id: string): string | null {
+  return MOD_ID.test(id) && existsSync(join(modDir(id), MANIFEST)) ? join(modDir(id), 'files') : null
+}
+
+export const modFolder = (id: string): string | null => (modFilesDir(id) ? modDir(id) : null)
+
+/** Re-reads a mod's folder: its file list and size, keeping the details in its mod.json. */
+async function rescan(id: string): Promise<void> {
+  const path = join(modDir(id), MANIFEST)
+  const meta = JSON.parse((await readFile(path, 'utf8')).replace(/^﻿/, '')) as ModMeta
+  const root = join(modDir(id), 'files')
+  const files = isDirectory(root) ? await walk(root) : []
+  let sizeBytes = 0
+  for (const file of files) sizeBytes += (await stat(join(root, file))).size
+  const next: ModMeta = { ...meta, id, files, sizeBytes, revision: Date.now() }
+  await writeFile(path, JSON.stringify(next, null, 2))
+}
+
+/** Brings a mod's file list up to date after files were added to its folder. */
+export const rescanMod = (id: string): Promise<void> => enqueue(() => rescan(id))
+
+/** Picks up edits made in a mod's folder and, if the mod is on, rebuilds the game files from them. */
+export async function reloadMod(id: string): Promise<Result> {
+  if (!modFilesDir(id)) return { ok: false, error: 'Mod not found.' }
+  if (isRunning()) return { ok: false, error: 'Close Skate 3 before changing mods.' }
+  await enqueue(() => rescan(id))
+  return change(id, () => undefined)
 }
 
 export function setModEnabled(id: string, enabled: boolean): Promise<Result> {
