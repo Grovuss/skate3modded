@@ -13,6 +13,7 @@ import {
   managedExe,
   updateConfig
 } from './game'
+import { reapplyMenuTheme } from './menuTheme'
 import { extractZip, listZip } from './zip'
 
 // Release builds of the recompilation the launcher installs and keeps updated.
@@ -144,6 +145,8 @@ export async function installBuild(
       name.startsWith(prefix) ? name.slice(prefix.length) : null
     )
     await updateConfig({ exePath: managedExe(), managedVersion: release.tag })
+    // The update replaced the runtime library: colour the new one if the option is on.
+    await reapplyMenuTheme(getStatus().menuTheme)
     return { ok: true }
   } finally {
     installing = false

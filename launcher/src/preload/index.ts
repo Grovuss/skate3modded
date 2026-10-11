@@ -16,6 +16,7 @@ const api: Api = {
   pickIso: () => ipcRenderer.invoke('game:pick-iso'),
   setExtraArgs: (args) => ipcRenderer.invoke('game:args', args),
   setLauncherOptions: (options) => ipcRenderer.invoke('launcher:options', options),
+  setMenuTheme: (on) => ipcRenderer.invoke('launcher:menu-theme', on),
   launch: () => ipcRenderer.invoke('game:launch'),
   openPath: (target) => ipcRenderer.invoke('open:path', target),
 

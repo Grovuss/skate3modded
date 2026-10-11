@@ -19,6 +19,7 @@ import {
 } from './game'
 import { addToMod, extractEntries, extractedRoot, listArchives, listEntries } from './gamefiles'
 import { installGameFiles } from './iso'
+import { setMenuTheme } from './menuTheme'
 import {
   createMod,
   importMod,
@@ -120,6 +121,7 @@ function registerIpc(): void {
     await setLauncherOptions((options ?? {}) as LauncherOptions)
     return getStatus()
   })
+  ipcMain.handle('launcher:menu-theme', (_event, on: unknown) => attempt(() => setMenuTheme(on === true)))
   ipcMain.handle('game:launch', async () => {
     const result = await attempt(launch)
     const { afterLaunch } = getStatus()

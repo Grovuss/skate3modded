@@ -31,7 +31,8 @@ let config: LauncherConfig = {
   managedVersion: null,
   isoPath: null,
   afterLaunch: 'keep',
-  checkUpdates: true
+  checkUpdates: true,
+  menuTheme: false
 }
 let child: ChildProcess | null = null
 let statusListener: (() => void) | null = null
@@ -86,7 +87,8 @@ export async function loadConfig(): Promise<void> {
       managedVersion: typeof stored.managedVersion === 'string' ? stored.managedVersion : null,
       isoPath: typeof stored.isoPath === 'string' ? stored.isoPath : null,
       afterLaunch: AFTER_LAUNCH.includes(stored.afterLaunch!) ? stored.afterLaunch! : 'keep',
-      checkUpdates: stored.checkUpdates !== false
+      checkUpdates: stored.checkUpdates !== false,
+      menuTheme: stored.menuTheme === true
     }
   } catch {
     // First run, or an unreadable config: start from defaults.
@@ -175,7 +177,8 @@ export function getStatus(): GameStatus {
     running: isRunning(),
     extraArgs: config.extraArgs,
     afterLaunch: config.afterLaunch,
-    checkUpdates: config.checkUpdates
+    checkUpdates: config.checkUpdates,
+    menuTheme: config.menuTheme
   }
 }
 

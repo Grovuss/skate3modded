@@ -13,6 +13,8 @@ export interface LauncherConfig {
   afterLaunch: AfterLaunch
   /** Look for a newer game build when the launcher opens. */
   checkUpdates: boolean
+  /** Recolour the game build's own settings menu and overlays to the launcher's palette. */
+  menuTheme: boolean
 }
 
 /** What the launcher window does once the game has started. */
@@ -42,6 +44,7 @@ export interface GameStatus {
   extraArgs: string
   afterLaunch: AfterLaunch
   checkUpdates: boolean
+  menuTheme: boolean
 }
 
 export interface BuildInfo {
@@ -141,6 +144,8 @@ export interface Api {
   pickIso(): Promise<GameStatus>
   setExtraArgs(args: string): Promise<GameStatus>
   setLauncherOptions(options: LauncherOptions): Promise<GameStatus>
+  /** Recolours (or restores) the game build's own settings menu and overlays. */
+  setMenuTheme(on: boolean): Promise<Result>
   launch(): Promise<Result>
   openPath(target: 'userRoot' | 'gameDir' | 'dlc' | 'backups' | 'mods' | 'extracted'): Promise<void>
 

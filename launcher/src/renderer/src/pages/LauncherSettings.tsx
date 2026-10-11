@@ -74,6 +74,26 @@ export function LauncherSettings({ status, setStatus, notify, progress }: Props)
 
       <div className="list-row">
         <div className="list-text">
+          <span>Skate³ colours in the game's menu</span>
+          <small>
+            Recolours the game build's own settings menu, FPS counter and overlays. The original is
+            kept and put back when this is switched off.
+          </small>
+        </div>
+        <Toggle
+          label="Skate³ colours in the game's menu"
+          checked={status.menuTheme}
+          disabled={busy}
+          onChange={async (on) => {
+            const result = await window.skate.setMenuTheme(on)
+            if (!result.ok) notify(result.error ?? 'Something went wrong.', 'error')
+            setStatus(await window.skate.getStatus())
+          }}
+        />
+      </div>
+
+      <div className="list-row">
+        <div className="list-text">
           <label htmlFor="extra-args">Launch arguments</label>
           <small>Passed to the game every time it starts, e.g. --fullscreen=false</small>
         </div>
